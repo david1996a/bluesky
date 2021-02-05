@@ -203,6 +203,12 @@ def initbasecmds():
             else bs.traf.delete(a),
             "Delete command (aircraft, wind, area)",
         ],
+        "DELAY": [
+            "DELAY time offset, COMMAND+ARGS",
+            "time,string",
+            lambda time, *args: sched_cmd(time, args, relative=True),
+            "Add a delayed command to stack",
+        ],
         "DELRTE": [
             "DELRTE acid",
             "acid",
@@ -508,7 +514,7 @@ def initbasecmds():
         "WIND": [
             "WIND lat,lon,alt/*,dir,spd,[alt,dir,spd,alt,...]",
             # last 3 args are repeated
-            "latlon,[alt],float,alt/float,...,",
+            "latlon,[alt],float,float,...,",
             bs.traf.wind.add,
             "Define a wind vector as part of the 2D or 3D wind field",
         ],

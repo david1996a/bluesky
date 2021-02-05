@@ -6,6 +6,7 @@ from bluesky.core.walltime import Timer
 
 class Node:
     def __init__(self, *args):
+        print("Starting detached node")
         self.node_id = b'\x00' + os.urandom(4)
         self.host_id = b''
         self.running = True
@@ -36,6 +37,7 @@ class Node:
 
     def send_event(self, eventname, data=None, target=None):
         pass
+        
 
     def send_stream(self, name, data):
         pass

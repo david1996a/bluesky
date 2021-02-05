@@ -96,6 +96,7 @@ def main():
         # Start gui if client or main server/gui combination is started here
         if mode in ('client', 'server-gui'):
             from bluesky.ui import qtgl
+            print(mode)
             qtgl.start(mode)
 
     # Give info on missing module

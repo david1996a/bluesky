@@ -88,7 +88,6 @@ def process():
 
     # First check for commands in scenario file
     checkscen()
-
     # Process stack of commands
     for line, sender_rte in cmdstack:
         success = True

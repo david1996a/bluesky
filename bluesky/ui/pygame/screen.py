@@ -1,7 +1,7 @@
 from math import *
 
 import pygame as pg
-
+pg.init()
 import datetime, os
 import os.path
 import subprocess
@@ -78,6 +78,7 @@ class Screen:
 
         # Keep track of sim dt to show average update rate on screen
         self.dts = []
+        self.init()
 
     def reset(self):
         self.objdel()     # Delete user defined objects

@@ -1,0 +1,7 @@
+In \traffic\route.py line 544, the self.iac must be the index of the aircraft. When an a/c is deleted this self.iac is not updated and leads to an indexing error 
+
+The delay stack comand is not in basecmds.py anymore!! The planes don't land. line 871
+
+In __getattr__ from bluesky\core\entity.py some code has been added in order to not get recursion error when doing a deepcopy.
+
+There is an error in te creconfs function. The traffic.create() was changet to traffic.cre() but it was not changed in the createconflicts.

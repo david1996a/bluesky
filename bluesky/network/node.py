@@ -51,7 +51,7 @@ class Node:
 
     def quit(self):
         ''' Quit the simulation process. '''
-        self.running = False
+        self.running = True
 
     def stop(self):
         ''' Stack stop/quit command. '''
@@ -76,6 +76,6 @@ class Node:
         target = target or stack.routetosender() or [b'*']
         pydata = msgpack.packb(data, default=encode_ndarray, use_bin_type=True)
         self.event_io.send_multipart(target + [eventname, pydata])
-
+        
     def send_stream(self, name, data):
         self.stream_out.send_multipart([name + self.node_id, msgpack.packb(data, default=encode_ndarray, use_bin_type=True)])

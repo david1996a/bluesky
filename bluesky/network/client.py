@@ -74,13 +74,19 @@ class Client:
         self.stream_in.setsockopt(zmq.UNSUBSCRIBE, streamname + node_id)
 
     def connect(self, hostname='localhost', event_port=0, stream_port=0, protocol='tcp'):
+        print("     Entering connect function")
         conbase = '{}://{}'.format(protocol, hostname)
         econ = conbase + (':{}'.format(event_port) if event_port else '')
         scon = conbase + (':{}'.format(stream_port) if stream_port else '')
+        print("     econ: ", econ,"        scon: ", scon)
         self.event_io.setsockopt(zmq.IDENTITY, self.client_id)
+        print("     2")
         self.event_io.connect(econ)
+        print("     3")
         self.send_event(b'REGISTER')
+        print("     4")
         self.host_id = self.event_io.recv_multipart()[0]
+        print("     5")
         print('Client {} connected to host {}'.format(self.client_id, self.host_id))
         self.stream_in.connect(scon)
 

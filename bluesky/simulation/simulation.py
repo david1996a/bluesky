@@ -14,7 +14,7 @@ from bluesky.tools import datalog, areafilter, plotter
 MINSLEEP = 1e-3
 
 # Register settings defaults
-bs.settings.set_variable_defaults(simdt=0.05)
+bs.settings.set_variable_defaults(simdt=1.0)
 
 
 class Simulation:
@@ -34,7 +34,7 @@ class Simulation:
         self.simt = 0.0
 
         # Simulation timestep [seconds]
-        self.simdt = bs.settings.simdt
+        self.simdt = 1.0
 
         # Simulation timestep multiplier: run sim at n x speed
         self.dtmult = 1.0
@@ -43,7 +43,7 @@ class Simulation:
         self.utc = datetime.datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
 
         # Flag indicating running at fixed rate or fast time
-        self.ffmode = False
+        self.ffmode = True
         self.ffstop = None
 
         # Flag indicating whether timestep can be varied to ensure realtime op
@@ -61,16 +61,13 @@ class Simulation:
                 if self.benchdt > 0.0:
                     self.fastforward(self.benchdt)
                     self.bencht = time.time()
-
         # When running at a fixed rate, or when in hold/init,
         # increment system time with sysdt and calculate remainder to sleep.
         remainder = self.syst - time.time()
         if (not self.ffmode or self.state != bs.OP) and remainder > MINSLEEP:
             time.sleep(remainder)
-
         # Always update stack
-        bs.stack.process()
-
+        #bs.stack.process()
         if self.state == bs.OP:
             # Plot/log the current timestep, and call preupdate functions
             plotter.update()
@@ -93,10 +90,8 @@ class Simulation:
             # Update traffic and other update functions for the next timestep
             bs.traf.update()
             simtime.update()
-
         # Always update syst
         self.syst += self.simdt / self.dtmult
-
         # Stop fast-time/benchmark if enabled and set interval has passed
         if self.ffstop is not None and self.simt >= self.ffstop:
             if self.benchdt > 0.0:
@@ -106,12 +101,11 @@ class Simulation:
                 self.hold()
             else:
                 self.op()
-
+        bs.net.send_event(b'STATECHANGE', self.state)
         # Inform main of our state change
         if self.state != self.prevstate:
             bs.net.send_event(b'STATECHANGE', self.state)
             self.prevstate = self.state
-
     def stop(self):
         ''' Stack stop/quit command. '''
         self.state = bs.END
@@ -130,7 +124,7 @@ class Simulation:
     def op(self):
         ''' Set simulation state to OPERATE. '''
         self.syst = time.time()
-        self.ffmode = False
+        self.ffmode = True
         self.state = bs.OP
         self.set_dtmult(1.0)
 
@@ -144,20 +138,23 @@ class Simulation:
         self.state = bs.INIT
         self.syst = -1.0
         self.simt = 0.0
-        self.simdt = bs.settings.simdt
+        self.simdt = 1.0
         simtime.reset()
         self.utc = datetime.datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
-        self.ffmode = False
+        self.ffmode = True
         self.set_dtmult(1.0)
-        simtime.reset()
-        core.reset()
         bs.navdb.reset()
         bs.traf.reset()
+        simtime.reset()
+        core.reset()
         bs.stack.reset()
         datalog.reset()
         areafilter.reset()
         bs.scr.reset()
         plotter.reset()
+        #print('endreset')
+        self.op()
+
 
     def set_dtmult(self, mult):
         ''' Set simulation speed multiplier. '''

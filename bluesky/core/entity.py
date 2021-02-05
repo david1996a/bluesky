@@ -30,6 +30,8 @@ class Proxy:
                 self._proxied.append(name)
 
     def __getattr__(self, attr):
+        if attr is '__setstate__':
+            raise AttributeError(attr)
         return getattr(self._refobj, attr)
 
     def __setattr__(self, name, value):

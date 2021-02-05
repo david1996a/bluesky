@@ -30,7 +30,6 @@ def start(mode):
 
     # Start the Qt main object
     app = QApplication([])
-
     # Start the bluesky network client
     client = GuiClient()
 

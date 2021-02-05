@@ -836,7 +836,6 @@ class Route(Replaceable):
         """Go to next waypoint and return data"""
 
         if self.flag_landed_runway:
-
             # when landing, LNAV is switched off
             lnavon = False
 
@@ -865,10 +864,10 @@ class Route(Replaceable):
             stack.stack("HDG " + str(bs.traf.id[self.iac]) + " " + str(wphdg))
 
             # start decelerating
-            stack.stack("DELAY " + "10 " + "SPD " + str(bs.traf.id[self.iac]) + " " + "10")
+            stack.stack("SPD " + str(bs.traf.id[self.iac]) + " " + "10")
 
             # delete aircraft
-            stack.stack("DELAY " + "42 " + "DEL " + str(bs.traf.id[self.iac]))
+            stack.stack("DEL " + str(bs.traf.id[self.iac]))
 
             return self.wplat[self.iactwp],self.wplon[self.iactwp],   \
                            self.wpalt[self.iactwp],self.wpspd[self.iactwp],   \
