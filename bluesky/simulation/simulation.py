@@ -49,6 +49,7 @@ class Simulation:
         # Flag indicating whether timestep can be varied to ensure realtime op
         self.rtmode = False
 
+
     def step(self):
         ''' Perform a simulation timestep. '''
         # Simulation starts as soon as there is traffic, or pending commands
@@ -106,6 +107,7 @@ class Simulation:
         if self.state != self.prevstate:
             bs.net.send_event(b'STATECHANGE', self.state)
             self.prevstate = self.state
+
     def stop(self):
         ''' Stack stop/quit command. '''
         self.state = bs.END
@@ -139,11 +141,11 @@ class Simulation:
         self.syst = -1.0
         self.simt = 0.0
         self.simdt = 1.0
-        simtime.reset()
+        #simtime.reset()
         self.utc = datetime.datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
         self.ffmode = True
         self.set_dtmult(1.0)
-        bs.navdb.reset()
+        #bs.navdb.reset()
         bs.traf.reset()
         simtime.reset()
         core.reset()

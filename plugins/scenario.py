@@ -19,7 +19,6 @@ def init_plugin():
 
     # Addtional initilisation code
     global random_scenario
-    print("initializing plugin")
     random_scenario = RandomScenario()
     random_scenario.start()
     bs.random = random_scenario
@@ -144,7 +143,7 @@ class RandomScenario:
             result = calculate_tlosh(areas[combination[0]], areas[combination[1]], bs.settings.asas_pzr * nm)
             matrix[combination[0], combination[1]] = result
             matrix[combination[1], combination[0]] = result
-        print(matrix)
+
         for ac in range(bs.traf.ntraf):
             if self.zone.checkInside(bs.traf.lat[ac], bs.traf.lon[ac], bs.traf.alt[ac]) == False:
                 bs.traf.delete(ac)

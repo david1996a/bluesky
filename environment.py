@@ -1,6 +1,7 @@
 import bluesky as bs 
 import numpy as np
 from bluesky.tools.aero import nm
+import time
 
 class BSEnv:
 	def __init__(self, altitude_change = False):
@@ -18,53 +19,75 @@ class BSEnv:
 
 		self.action_space = np.arange(self.n_actions)	#Vector that will containt the possible options
 		self.observation_space = np.array([])	#Vector that will contain the state space.
+		self.number_of_planes = 5	#Number of surrounding planes that each agent takes into account when calculating individual states.
+		self.time_step = 10
 
 	def reset(self):
 		"""
 		TO DO: Rewrite this function so it is easier to restart the scenario. It takes too long since it has to
 		restart all bluesky.
 		"""
-		bs.init("sim")
+		bs.sim.reset()
 		bs.net.connect()
-		return self.calculate_state()
+		states = self.calculate_states()
+		state = self.calculate_general_state()
+		return state, states
 
-	def calculate_state(self):
+	def calculate_states(self):
 		"""
 		Function that returns the state for all the agents of the environment. It retuns it in the form of a 
 		numpy matrix where each row will be the state for an aircraft.
 		"""
-		states = np.zeros(shape(bs.traf.ntraf, self.observation_space))
+		states = np.zeros(shape=(bs.traf.ntraf, 12))
 		for ac in range(bs.traf.ntraf):
-			state = np.array([], dtype=np.float32)
-			
+			state = np.zeros(12, dtype=np.float32)
+			index = 0
 			#Distance and heading relative to the other planes.
 			qdr, distinm = bs.tools.geo.qdrdist(bs.traf.lat, bs.traf.lon,
 									np.ones(len(bs.traf.lat))*bs.traf.lat[ac], np.ones(len(bs.traf.lon))*bs.traf.lon[ac])
-			dist = distinnm * nm
+			dist = distinm * nm
 			planes = np.argsort(dist)[0:self.number_of_planes]
 
 			for plane in planes:
-				np.append(state, [dist[plane], qdr[plane]])
+				state[index:index+2] = [dist[plane],qdr[plane]]
+				#state = np.append(state, [dist[plane], qdr[plane]])
+				index+=2
 
 			#Distance and heading from the plane to the destination.
 			heading, distance = bs.tools.geo.qdrdist(bs.traf.lat[ac], bs.traf.lon[ac], 
 				bs.traf.ap.route[ac].wplat[-1], bs.traf.ap.route[ac].wplon[-1])
-
-			np.append(state, [heading, diatance])
+			state[index:] = [heading, distance]
+			#state = np.append(state, [heading, distance])
 			states[ac,:] = state
 
 		return states
 
-	def reward(self):
+	def calculate_general_state(self):
 		"""
-		Function that returns the reard for each state
+		Function that returns the global state in the form of a numpy array.
 		"""
-		pass
+		return [bs.traf.lat, bs.traf.lon, bs.traf.alt, bs.traf.cas]
+		
+	def reward(self, w_time=1, w_fuel=1, w_conflicts=1, w_complexity=1):
+		"""
+		Function that returns the reward for each state
+		"""
+		return -w_time*self.time_step - w_fuel*1 - w_conflicts*1 - w_complexity*1
 
 	def step(self):
+		tic = time.perf_counter()
 		bs.sim.step()
 		bs.net.step()
-		print(bs.sim.simt)
+		
+		state = self.calculate_general_state()
+		states = self.calculate_states()
+		done = self.check_episode_done()
+		reward = self.reward()
+		toc = time.perf_counter()
+		print(f"The step function took {toc-tic:0.4f} seconds")
+
+		return state, states, reward, done
+
 
 	def take_actions(self, actions):
 		"""
@@ -99,6 +122,14 @@ class BSEnv:
 
 		bs.sim.step()
 		bs.net.step()
+
+	def check_episode_done(self):
+		if bs.traf.ntraf > self.number_of_planes:
+			return True
+		if bs.sim.simt > 3600:
+			return True
+
+		return False
 
 
 
