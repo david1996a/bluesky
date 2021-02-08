@@ -20,7 +20,7 @@ class BSEnv:
 		self.action_space = np.arange(self.n_actions)	#Vector that will containt the possible options
 		self.observation_space = np.array([])	#Vector that will contain the state space.
 		self.number_of_planes = 5	#Number of surrounding planes that each agent takes into account when calculating individual states.
-		self.time_step = 10
+		self.time_step = 10	#[s] time between each timestep for the rl model.
 
 	def reset(self):
 		"""
@@ -84,7 +84,7 @@ class BSEnv:
 		done = self.check_episode_done()
 		reward = self.reward()
 		toc = time.perf_counter()
-		print(f"The step function took {toc-tic:0.4f} seconds")
+		print(f"The step function took {toc-tic:0.4f} seconds") #Delete later
 
 		return state, states, reward, done
 
@@ -124,7 +124,7 @@ class BSEnv:
 		bs.net.step()
 
 	def check_episode_done(self):
-		if bs.traf.ntraf > self.number_of_planes:
+		if bs.traf.ntraf < self.number_of_planes:
 			return True
 		if bs.sim.simt > 3600:
 			return True

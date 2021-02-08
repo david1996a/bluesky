@@ -21,3 +21,5 @@ bluesky/ui/pygame/__pycache__/
 bluesky/ui/qtgl/__pycache__/
 data/cache/
 plugins/__pycache__/
+test_maddpg.py
+
