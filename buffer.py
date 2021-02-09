@@ -2,20 +2,21 @@ import numpy as np
 
 class Buffer:
 	def __init__(self, max_size, input_shape, observation_shape, number_of_agents):
-		self.max_size= max_memory
+		self.max_size= max_size
 		self.mem_cntr = 0
-		self.state_memory = np.zeros((self.max_size, *input_shape), dtype=np.float32)
-		self.observations_memory = np.zeros((self.max_size, number_of_agents, *observation_shape))
-		self.action_memory = np.np.zeros((self.max_size, number_of_agents), dtype=np.int64)
-		self.next_state_memory = np.zeros((self.max_size, *input_shape), dtype=np.float32)
-		self.next_observations_memory = np.zeros((self.max_size, number_of_agents, *observation_shape))
+		self.state_memory = np.zeros((self.max_size, input_shape), dtype=np.float32)
+		self.observations_memory = np.zeros((self.max_size, number_of_agents, observation_shape), dtype=np.float32)
+		self.action_memory = np.zeros((self.max_size, number_of_agents), dtype=np.int64)
+		self.reward_memory = np.zeros((self.max_size,1), dtype=np.float32)
+		self.next_state_memory = np.zeros((self.max_size, input_shape), dtype=np.float32)
+		self.next_observations_memory = np.zeros((self.max_size, number_of_agents, observation_shape), dtype=np.float32)
 		self.done_memory = np.zeros((self.max_size,1), dtype=np.uint8)
 
 	def store_transition(self, state, observations, actions, reward, next_state, next_observations, done):
 		index = self.mem_cntr%self.max_size
 		self.state_memory[index] = state
-		self.observation_memory[index] = observations
-		self.action_memory[index] = action
+		self.observations_memory[index] = observations
+		self.action_memory[index] = actions
 		self.reward_memory[index] = reward
 		self.next_state_memory[index] = next_state
 		self.next_observations_memory[index] = next_observations

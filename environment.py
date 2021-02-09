@@ -2,12 +2,15 @@ import bluesky as bs
 import numpy as np
 from bluesky.tools.aero import nm
 import time
+import os
+os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
 
 class BSEnv:
 	def __init__(self, altitude_change = False):
 		super(BSEnv, self).__init__()
 		bs.init("sim")
 		bs.net.connect()
+		self.initial_number_of_planes = 25
 		self.update_interval = 25	#[s] time between each timestep from the reinforcement learing model
 		self.max_heading = 359 #[º] Max. relative degree heading. Used later to scale the state space.
 		self.max_distance = bs.settings.asas_pzr * nm * 5 #[m] Maximum distance between planes that gets passed in the states
@@ -38,7 +41,7 @@ class BSEnv:
 		Function that returns the state for all the agents of the environment. It retuns it in the form of a 
 		numpy matrix where each row will be the state for an aircraft.
 		"""
-		states = np.zeros(shape=(bs.traf.ntraf, 12))
+		states = np.zeros(shape=(self.initial_number_of_planes, 12), dtype=np.float32)
 		for ac in range(bs.traf.ntraf):
 			state = np.zeros(12, dtype=np.float32)
 			index = 0
@@ -66,7 +69,12 @@ class BSEnv:
 		"""
 		Function that returns the global state in the form of a numpy array.
 		"""
-		return [bs.traf.lat, bs.traf.lon, bs.traf.alt, bs.traf.cas]
+		state = np.zeros(self.initial_number_of_planes*4, dtype=np.float32)
+		state[0:bs.traf.ntraf] = bs.traf.lat
+		state[self.initial_number_of_planes:(self.initial_number_of_planes+bs.traf.ntraf)] = bs.traf.lon
+		state[2*self.initial_number_of_planes:(2*self.initial_number_of_planes+bs.traf.ntraf)] = bs.traf.alt
+		state[3*self.initial_number_of_planes:(3*self.initial_number_of_planes+bs.traf.ntraf)] = bs.traf.cas		
+		return np.concatenate((bs.traf.lat, bs.traf.lon, bs.traf.alt, bs.traf.cas))
 		
 	def reward(self, w_time=1, w_fuel=1, w_conflicts=1, w_complexity=1):
 		"""
@@ -75,7 +83,6 @@ class BSEnv:
 		return -w_time*self.time_step - w_fuel*1 - w_conflicts*1 - w_complexity*1
 
 	def step(self):
-		tic = time.perf_counter()
 		bs.sim.step()
 		bs.net.step()
 		
@@ -83,11 +90,12 @@ class BSEnv:
 		states = self.calculate_states()
 		done = self.check_episode_done()
 		reward = self.reward()
-		toc = time.perf_counter()
-		print(f"The step function took {toc-tic:0.4f} seconds") #Delete later
-
 		return state, states, reward, done
 
+
+	def take_actions_continuous(self, actions):
+		for index, action in enumerate(actions):
+			bs.traf.ap.selhdgcmd(index, bs.traf.hdg[index]+action)
 
 	def take_actions(self, actions):
 		"""
@@ -126,7 +134,7 @@ class BSEnv:
 	def check_episode_done(self):
 		if bs.traf.ntraf < self.number_of_planes:
 			return True
-		if bs.sim.simt > 3600:
+		if bs.sim.simt > 250:
 			return True
 
 		return False

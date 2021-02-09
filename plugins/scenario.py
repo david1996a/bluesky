@@ -237,7 +237,7 @@ class RandomScenario:
 
 def reset():
     random_scenario.zone = Circle('zone', (random.uniform(50,40), random.uniform(0,15), 400))
-    random_scenario.numb_ac = 18
+    random_scenario.numb_ac = 25
     random_scenario.ap_inside = bs.navdb.getapinside(40, 50, 0, 15)
     random_scenario.routecompleted = np.full((random_scenario.numb_ac), False)
     random_scenario.wpcalculated = np.full((random_scenario.numb_ac), False)
