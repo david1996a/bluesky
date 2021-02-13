@@ -34,6 +34,7 @@ class Actor(nn.Module):
 class Critic(nn.Module):
 	def __init__(self, full_state_size, full_action_size, fcs1_units=256, fc2_units=128):
 		super(Critic, self).__init__()
+		print(full_state_size,fcs1_units)
 		self.fcs1 = nn.Linear(full_state_size, fcs1_units)
 		self.fc2 = nn.Linear(fcs1_units+full_action_size, fc2_units)
 		self.fc3 = nn.Linear(fc2_units, 1)
@@ -47,6 +48,7 @@ class Critic(nn.Module):
 	def forward(self, full_state, full_action):
 		"""Build a critic (value) network that maps (state, action) pairs -> Q-values."""
 		xs = F.elu(self.fcs1(full_state))
+		print("full state: ", full_state, "full action: ",full_action)
 		x = torch.cat((xs, full_action), dim=1)
 		x = F.elu(self.fc2(x))
 		return self.fc3(x)

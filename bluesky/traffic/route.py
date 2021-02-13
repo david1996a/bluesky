@@ -859,7 +859,6 @@ class Route(Replaceable):
                     rwykey = rwykey+name[9]
 
             wphdg = bs.navdb.rwythresholds[name[:4]][rwykey][2]
-
             # keep constant runway heading
             stack.stack("HDG " + str(bs.traf.id[self.iac]) + " " + str(wphdg))
 

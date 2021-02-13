@@ -6,7 +6,7 @@ import numpy as np
 
 #Constants
 BUFFER_SIZE = int(1e5)  # replay buffer size
-BATCH_SIZE = 256        # minibatch size
+BATCH_SIZE = 20         # minibatch size
 GAMMA = 0.99            # discount factor
 TAU = 1e-3              # for soft update of target parameters
 LR_ACTOR = 1e-4 #3e-5 #1e-4         # learning rate of the actor 
@@ -44,32 +44,31 @@ class DDPG(object):
 		self.hard_update(self.actor_target, self.actor_local)
 		self.hard_update(self.critic_target, self.critic_local)
 
-	def learn(self, experiences, gamma):
-		state, observation, actions, reward, next_states, next_observation, next_actions_full = experiences
-		actions_next = self.actor_local.forward(next_observations)
+	def learn(self, experiences, gamma, agent_no, number_agents):
+		state, observation, actions, reward, next_states, next_observation, next_actions_full, agent_dones = experiences
 		
 		"""Training the critic"""
-		Q_target_next = self.critic_target.forward(next_states, actions_next)
-		Q_target = agent_rewards + gamma * Q_target_next * (1 - agent_dones)
-		Q_expected = self.critic_local.forward(state, actions)
+		Q_target_next = self.critic_target.forward(next_states, torch.tensor(next_actions_full.detach().numpy().reshape(BATCH_SIZE, number_agents)).to(DEVICE))
+		Q_target = reward + gamma * Q_target_next * (1 - agent_dones)
+		Q_expected = self.critic_local.forward(state, torch.tensor(actions.detach().numpy().reshape(BATCH_SIZE, number_agents)).to(DEVICE))
 		critic_loss = F.mse_loss(input=Q_expected, target=Q_target)
 		critic_loss.backward()
 		self.critic_optimizer.zero_grad()
 
 		"""Training the actor"""
-		actor_loss = -self.critic_local(states, self.actor_local.forward(states)).mean()
+		actions[:,agent_no,:] = self.actor_local.forward(observation[:,agent_no])
+		actor_loss = -self.critic_local.forward(state, torch.tensor(actions.detach().numpy().reshape(BATCH_SIZE, number_agents)).to(DEVICE)).mean()
 		self.actor_optimizer.zero_grad()
-		actor.loss.backward()
+		actor_loss.backward()
 		self.actor_optimizer.step()
 
 	def soft_update_all(self):
 		self.soft_update(self.critic_local, self.critic_target, TAU)
 		self.soft_update(self.actor_local, self.actor_target, TAU)
 
-
-	def soft_update(self, model1, model2, TAU):
+	def soft_update(self, model1, model2, tau):
 		for target_param, local_param in zip(model2.parameters(), model1.parameters()):
-			target_param.datacopy_(tau*local_param.data + (1.0-tau)*target_param.data)
+			target_param.data.copy_(tau*local_param.data + (1.0-tau)*target_param.data)
 
 	def hard_update(self, model1, model2):
 		for target_param, local_param in zip(model2.parameters(), model1.parameters()):

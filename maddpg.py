@@ -1,16 +1,19 @@
 import numpy as np
 from ddpg import DDPG
 from buffer import Buffer
+import torch as T
 
 NUM_LEARN_STEPS_PER_ENV_STEP = 1
 GAMMA = 0.9
-BATCH_SIZE = 2
+BATCH_SIZE = 20
+DEVICE = T.device("cuda:0" if T.cuda.is_available() else "cpu")
 
 class MADDPG:
 	def __init__(self, state_size, observation_size, action_size, n_agents, buffer_samples):
 		self.state_size	= state_size
 		self.observation_size = observation_size
 		self.action_size = action_size
+		print(action_size)
 		self.n_agents = n_agents
 		self.whole_action_size = self.action_size * self.n_agents
 		self.buffer_samples = buffer_samples	#Number of transitions to be stored in the buffer.
@@ -29,28 +32,30 @@ class MADDPG:
 
 		if self.memory.mem_cntr > BATCH_SIZE and i_episode > self.episodes_before_training:
 			for _ in range(NUM_LEARN_STEPS_PER_ENV_STEP):
-				samples = self.memory.sample()
-				print(samples)
-				self.learn(samples, agent_no, GAMMA)
+				for agent_no in range(self.n_agents):
+					samples = self.sample_memory()
+					self.learn(samples, agent_no, GAMMA)
 			self.soft_update_all()
 
 	def learn(self, sample, agent_no, gamma):
 		states, observations, actions, rewards, next_states, next_observations, dones = sample
-		full_next_actions = np.zeros((self.n_agents, self.observations_size))
+		full_next_actions = np.zeros((BATCH_SIZE, self.n_agents, self.action_size), dtype=np.float32)
 
 		for index, agent in enumerate(self.maddpg_agents):
-			full_next_actions[index,:] = agent.actor_target.forward(next_observations)
+			#print(agent, index)
+			full_next_actions[:,index,:] = agent.actor_target.forward(next_observations[:,index,:]).detach().numpy()
+		#full_next_actions = full_next_actions.reshape(self.n_agents, BATCH_SIZE)
 		full_next_actions = T.tensor(full_next_actions).to(DEVICE)
-		
-		for agent in self.maddpg_agents:
-			agent.learn((state, observation, actions, reward, next_states, next_observation, next_actions_full), GAMMA)
+		#print(observations)
+		agent.learn((states, observations, actions, rewards, next_states, next_observations, full_next_actions, dones), 
+			GAMMA, agent_no, self.n_agents)
 
 	def sample_memory(self):
 		state, observations, action, reward, next_state, next_observations, done = \
-						self.memory.sample_buffer(self.batch_size)
+						self.memory.sample_buffer(BATCH_SIZE)
 
 		states = T.tensor(state).to(DEVICE)
-		observations = T.tensor(state).to(DEVICE)
+		observations = T.tensor(observations).to(DEVICE)
 		rewards = T.tensor(reward).to(DEVICE)
 		dones = T.tensor(done).to(DEVICE)
 		actions = T.tensor(action).to(DEVICE)
@@ -67,3 +72,6 @@ class MADDPG:
 
 		return actions
 
+	def soft_update_all(self):
+		for agent in self.maddpg_agents:
+			agent.soft_update_all()

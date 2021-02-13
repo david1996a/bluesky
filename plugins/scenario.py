@@ -12,6 +12,7 @@ from ecosystems import *
 from bluesky.tools.aero import ft, nm
 from bluesky.tools import geo, areafilter, plotter
 myclientrte = None
+import numpy as np 
 
 ### Initialization function of your plugin. Do not change the name of this
 ### function, as it is the way BlueSky recognises this file as a plugin.
@@ -83,8 +84,8 @@ def mlstep():
 
 class RandomScenario:
     def __init__(self):
-        self.zone = Circle('zone', (random.uniform(50,40), random.uniform(0,15), 150))
-        self.numb_ac = 25
+        self.zone = Circle('zone', (random.uniform(50,40), random.uniform(0,15), 100))
+        self.numb_ac = 20
         self.ap_inside = bs.navdb.getapinside(40, 50, 0, 15)
         self.routecompleted = np.full((self.numb_ac), False)
         self.wpcalculated = np.full((self.numb_ac), False)
@@ -99,22 +100,22 @@ class RandomScenario:
         bs.sim.ffmode = True
         
 
-    def getnextwp(self, lat, lon, idx, criteria = 'd', range = 1):
+    def getnextwp(self, lat, lon, idx, criteria = 'd', range_look = 1):
         dest = bs.traf.ap.dest[idx]
         dest_idx = bs.navdb.getaptidx(dest)
         dest_lat = bs.navdb.aptlat[dest_idx]
         dest_lon = bs.navdb.aptlon[dest_idx]
         #We select waypoints surrounding the aircraft.
-        list_next_wp = bs.navdb.getwpinside(lat-range, lat+range, lon-range, lon+range)
-        min = 9999999
+        list_next_wp = bs.navdb.getwpinside(lat-range_look , lat+range_look , lon-range_look , lon+range_look)
+        min_value = np.inf
         weight1 = 10
         for waypoint in list_next_wp:
             qdrwp, dwp = qdrdist(lat, lon, bs.navdb.wplat[waypoint], bs.navdb.wplon[waypoint])
             qdrdest, ddest = qdrdist(bs.navdb.wplat[waypoint], bs.navdb.wplon[waypoint], dest_lat, dest_lon)
             value = (abs(qdrwp - qdrdest)/360.0*weight1 + (ddest - dwp)/ddest)
-            if min>value:
+            if min_value>value:
                 final_idx = waypoint
-                min = value
+                min_value = value
         name = bs.navdb.wpid[final_idx]
         wptype = bs.navdb.wptype[final_idx]
         lat2 =  bs.navdb.wplat[final_idx]
@@ -127,7 +128,7 @@ class RandomScenario:
         if random.randint(0,10000)< self.createconflict and bs.sim.simt > 5:
             print("creating conflict")
             bs.traf.creconfs(str(bs.traf.ntraf+1), actype = 'A388', 0, 100, 20, 600)
-        """
+        
         matrix = np.zeros(shape=(bs.traf.ntraf, bs.traf.ntraf), dtype=bool)
         areas = []
         combinations = list(itertools.combinations(range(bs.traf.ntraf),2))
@@ -143,11 +144,20 @@ class RandomScenario:
             result = calculate_tlosh(areas[combination[0]], areas[combination[1]], bs.settings.asas_pzr * nm)
             matrix[combination[0], combination[1]] = result
             matrix[combination[1], combination[0]] = result
-
+        """
         for ac in range(bs.traf.ntraf):
+            dest = bs.traf.ap.dest[ac]
+            dest_idx = bs.navdb.getaptidx(dest)
+            dest_lat = bs.navdb.aptlat[dest_idx]
+            dest_lon = bs.navdb.aptlon[dest_idx]
+            qdrwp, dwp = qdrdist(bs.traf.lat[ac], bs.traf.lon[ac], dest_lat, dest_lon)
+            if dwp*nm<100:
+                bs.traf.delete(ac)
+                break
             if self.zone.checkInside(bs.traf.lat[ac], bs.traf.lon[ac], bs.traf.alt[ac]) == False:
                 bs.traf.delete(ac)
                 break
+                
 
         self.fix_index_bug()
         
@@ -167,9 +177,17 @@ class RandomScenario:
         rand_distance = random.randint(0, self.zone.r)
         heading_vector = random.randint(0,360)
         lat, lon = qdrpos(latd1 = self.zone.clat, lond1 = self.zone.clon, qdr = heading_vector, dist = rand_distance)
-        runwayerror = True
+        #runwayerror = True
+        list_next_wp = self.ap_inside
+        waypoint = random.choice(list_next_wp)
+        dest_lat = bs.navdb.aptlat[waypoint]
+        dest_lon = bs.navdb.aptlon[waypoint]
+        dest_id = bs.navdb.aptid[waypoint]
+        qdr, d = qdrdist(lat, lon, dest_lat, dest_lon)
         #Airport this aircraft will be heading.
+        """
         while runwayerror == True:
+            print("looking 4 an airport...")
             airport_destination_idx = random.choice(self.ap_inside)
             try:
                 airport_destination_id = bs.navdb.aptid[airport_destination_idx]
@@ -179,29 +197,30 @@ class RandomScenario:
                     runwayerror = False
             except:
                 pass
+        
         airport_destination_lat = bs.navdb.aptlat[airport_destination_idx]
         airport_destination_lon = bs.navdb.aptlon[airport_destination_idx]
         airport_destination_name = bs.navdb.aptname[airport_destination_idx]
         qdr, d = qdrdist(lat, lon, airport_destination_lat, airport_destination_lon)
-
+        """
         #Creating the plane.
         acid = 'AC'+str(ac)
         bs.traf.cre(acid = acid, actype = 'A388', aclat=lat, aclon = lon, achdg = qdr, acalt=10000, acspd=200)
-        bs.traf.ap.dest[ac] = airport_destination_id
-        bs.traf.ap.setdestorig("DEST", ac, airport_destination_id)
+        bs.traf.ap.dest[ac] = dest_id
+        bs.traf.ap.setdestorig("DEST", ac, dest_id)
 
         #The first waypoint is added.
-        waypoint = self.getnextwp(lat, lon ,ac)
-        name = bs.navdb.wpid[waypoint]
+        #waypoint = self.getnextwp(lat, lon ,ac)
         self.calc_route(ac)
+        name = bs.traf.ap.route[ac].wpname[0]
         #The plane is directed to that route. The point is set to an acivewaypoint.
         bs.traf.ap.route[ac].direct(ac, name)
 
-    def nextwp(self, dist2wp, dist2dest):
+    def nextwp(self, idx, dist2wp, dist2dest):
+        """
             for idx in [i for i in range(len(dist2wp)) if dist2wp[i] < 25000 and self.wpcalculated[i] == True and self.routecompleted[i] == False] :
                 bs.wpcalculated[idx] = False
             for idx in [i for i in range(len(dist2wp)) if dist2wp[i] < 18000 and self.wpcalculated[i] == False and self.routecompleted[i] == False] :
-
                 self.getnextwp(idx, bs.traf, range = 2)
                 self.wpcalculated[idx] = True
 
@@ -209,7 +228,8 @@ class RandomScenario:
             for idx in [i for i in range(len(dist2dest)) if dist2dest[i] < 100000 and self.routecompleted[i] == False]:
                 self.addrwy(idx)
                 self.routecompleted[idx] = True
-
+        """
+        pass
     def calc_route(self, idx):
         dest = bs.traf.ap.dest[idx]
         dest_idx = bs.navdb.getaptidx(dest)
@@ -219,17 +239,25 @@ class RandomScenario:
         lon = bs.traf.lon[idx]
         distance = 100000
         route_calculation_on = True
+        rlook=2
+        counter = 0
         #While the plane is not close enough to the destination
         while route_calculation_on:
+            counter += 1
             qdrwp, dwp = qdrdist(lat, lon, dest_lat, dest_lon)
-            if dwp*nm<distance:
+            current_distance = dwp*nm
+            if current_distance<distance:
                 route_calculation_on = False
                 break
-            wp_idx = self.getnextwp(lat, lon, idx, range = 2)
+            wp_idx = self.getnextwp(lat, lon, idx, range_look = rlook)
             lat = bs.navdb.wplat[wp_idx]
             lon = bs.navdb.wplon[wp_idx]
+            if counter>10:
+                print("eeeeeee")
+                rlook += 0.2
+                distance -= 1000
 
-        self.addrwy(idx)
+        #self.addrwy(idx)
 
     def fix_index_bug(self):
         for ac in range(bs.traf.ntraf):
@@ -237,12 +265,12 @@ class RandomScenario:
 
 def reset():
     random_scenario.zone = Circle('zone', (random.uniform(50,40), random.uniform(0,15), 400))
-    random_scenario.numb_ac = 25
-    random_scenario.ap_inside = bs.navdb.getapinside(40, 50, 0, 15)
+    random_scenario.numb_ac = 20
     random_scenario.routecompleted = np.full((random_scenario.numb_ac), False)
     random_scenario.wpcalculated = np.full((random_scenario.numb_ac), False)
     random_scenario.createconflict = 1
     random_scenario.nwconflat = 0
     random_scenario.nwconflon = 0
     random_scenario.start()
+
 

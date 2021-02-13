@@ -8,9 +8,10 @@ os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
 class BSEnv:
 	def __init__(self, altitude_change = False):
 		super(BSEnv, self).__init__()
-		bs.init("sim")
-		bs.net.connect()
-		self.initial_number_of_planes = 25
+		bs.init("sim-detached")
+		#bs.net.connect()
+		
+		self.initial_number_of_planes = bs.traf.ntraf
 		self.update_interval = 25	#[s] time between each timestep from the reinforcement learing model
 		self.max_heading = 359 #[º] Max. relative degree heading. Used later to scale the state space.
 		self.max_distance = bs.settings.asas_pzr * nm * 5 #[m] Maximum distance between planes that gets passed in the states
@@ -30,8 +31,9 @@ class BSEnv:
 		TO DO: Rewrite this function so it is easier to restart the scenario. It takes too long since it has to
 		restart all bluesky.
 		"""
+		print("resetting...")
 		bs.sim.reset()
-		bs.net.connect()
+		#bs.net.connect()
 		states = self.calculate_states()
 		state = self.calculate_general_state()
 		return state, states
@@ -42,6 +44,7 @@ class BSEnv:
 		numpy matrix where each row will be the state for an aircraft.
 		"""
 		states = np.zeros(shape=(self.initial_number_of_planes, 12), dtype=np.float32)
+		#print(bs.traf.ntraf)
 		for ac in range(bs.traf.ntraf):
 			state = np.zeros(12, dtype=np.float32)
 			index = 0
@@ -60,7 +63,6 @@ class BSEnv:
 			heading, distance = bs.tools.geo.qdrdist(bs.traf.lat[ac], bs.traf.lon[ac], 
 				bs.traf.ap.route[ac].wplat[-1], bs.traf.ap.route[ac].wplon[-1])
 			state[index:] = [heading, distance]
-			#state = np.append(state, [heading, distance])
 			states[ac,:] = state
 
 		return states
@@ -74,8 +76,9 @@ class BSEnv:
 		state[self.initial_number_of_planes:(self.initial_number_of_planes+bs.traf.ntraf)] = bs.traf.lon
 		state[2*self.initial_number_of_planes:(2*self.initial_number_of_planes+bs.traf.ntraf)] = bs.traf.alt
 		state[3*self.initial_number_of_planes:(3*self.initial_number_of_planes+bs.traf.ntraf)] = bs.traf.cas		
-		return np.concatenate((bs.traf.lat, bs.traf.lon, bs.traf.alt, bs.traf.cas))
-		
+		#return np.concatenate((bs.traf.lat, bs.traf.lon, bs.traf.alt, bs.traf.cas))
+		return state
+
 	def reward(self, w_time=1, w_fuel=1, w_conflicts=1, w_complexity=1):
 		"""
 		Function that returns the reward for each state
@@ -83,8 +86,12 @@ class BSEnv:
 		return -w_time*self.time_step - w_fuel*1 - w_conflicts*1 - w_complexity*1
 
 	def step(self):
-		bs.sim.step()
-		bs.net.step()
+		for i in range(self.time_step):
+			bs.sim.step()
+			bs.net.step()
+			done = self.check_episode_done()
+			if done:
+				break
 		
 		state = self.calculate_general_state()
 		states = self.calculate_states()
@@ -94,8 +101,8 @@ class BSEnv:
 
 
 	def take_actions_continuous(self, actions):
-		for index, action in enumerate(actions):
-			bs.traf.ap.selhdgcmd(index, bs.traf.hdg[index]+action)
+		for index in range(bs.traf.ntraf):
+			bs.traf.ap.selhdgcmd(index, bs.traf.hdg[index]+actions[index])
 
 	def take_actions(self, actions):
 		"""
@@ -134,7 +141,7 @@ class BSEnv:
 	def check_episode_done(self):
 		if bs.traf.ntraf < self.number_of_planes:
 			return True
-		if bs.sim.simt > 250:
+		if bs.sim.simt > 3600:
 			return True
 
 		return False
