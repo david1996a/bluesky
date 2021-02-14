@@ -27,7 +27,6 @@ class Buffer:
 	def sample_buffer(self, batch_size):
 		max_mem = min(self.mem_cntr, self.max_size)
 		batch = np.random.choice(max_mem, batch_size, replace=False)
-		print(batch)
 
 		states = self.state_memory[batch]
 		observations = self.observations_memory[batch]

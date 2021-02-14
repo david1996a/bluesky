@@ -6,7 +6,7 @@ import numpy as np
 
 #Constants
 BUFFER_SIZE = int(1e5)  # replay buffer size
-BATCH_SIZE = 20         # minibatch size
+BATCH_SIZE = 2000         # minibatch size
 GAMMA = 0.99            # discount factor
 TAU = 1e-3              # for soft update of target parameters
 LR_ACTOR = 1e-4 #3e-5 #1e-4         # learning rate of the actor 
@@ -17,7 +17,7 @@ WEIGHT_DECAY_critic = 0.0 #1e-6 #0        # L2 weight decay
 NOISE_START=1.0
 NOISE_END=0.1
 NOISE_REDUCTION=0.999
-EPISODES_BEFORE_TRAINING = 300
+EPISODES_BEFORE_TRAINING = 0
 NUM_LEARN_STEPS_PER_ENV_STEP = 3
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 MAX_ACTION = 60.0

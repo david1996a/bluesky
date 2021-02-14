@@ -5,7 +5,7 @@ import torch as T
 
 NUM_LEARN_STEPS_PER_ENV_STEP = 1
 GAMMA = 0.9
-BATCH_SIZE = 20
+BATCH_SIZE = 2000
 DEVICE = T.device("cuda:0" if T.cuda.is_available() else "cpu")
 
 class MADDPG:
@@ -13,7 +13,6 @@ class MADDPG:
 		self.state_size	= state_size
 		self.observation_size = observation_size
 		self.action_size = action_size
-		print(action_size)
 		self.n_agents = n_agents
 		self.whole_action_size = self.action_size * self.n_agents
 		self.buffer_samples = buffer_samples	#Number of transitions to be stored in the buffer.
@@ -24,7 +23,7 @@ class MADDPG:
 			num_agents=self.n_agents) for i in range(self.n_agents)]
 
 		"""Creating the buffer to store the trasnitions."""
-		self.memory = Buffer(max_size=self.buffer_samples, input_shape=self.state_size,
+		self.memory = Buffer(max_size=BATCH_SIZE , input_shape=self.state_size,
 		 	observation_shape = self.observation_size, number_of_agents=self.n_agents)
 
 	def step(self, i_episode, state, observations, actions, reward, next_state, next_observations, done):
@@ -75,3 +74,18 @@ class MADDPG:
 	def soft_update_all(self):
 		for agent in self.maddpg_agents:
 			agent.soft_update_all()
+
+	def save_maddpg(self):
+		for agent_id, agent in enumerate(self.maddpg_agents):
+			T.save(agent.actor_local.state_dict(), 'models/checkpoint_actor_local_'+str(agent_id)+'.pth')
+			T.save(agent.critic_local.state_dict(), 'models/checkpoint_critic_local_'+str(agent_id)+'.pth')
+
+	def load_maddpg(self):
+		for agent, agent in enumerate(self.maddpg_agents):
+			agent.actor_local.load_state_dict(T.load('models/checkpoint_actor_local_'+str(agent_id)
+				+'.pth',map_location=lambda storage, loc: storage))
+			agent.critic_local.load_state_dict(T.load('models/checkpoint_critic_local_'+str(agent_id)
+				+'.pth',map_location=lambda storage, loc: storage))
+
+			agent.noise_scale = NOISE_END
+			

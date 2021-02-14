@@ -239,11 +239,11 @@ class RandomScenario:
         lon = bs.traf.lon[idx]
         distance = 100000
         route_calculation_on = True
-        rlook=2
+        rlook=1
         counter = 0
         #While the plane is not close enough to the destination
         while route_calculation_on:
-            counter += 1
+            counter += 1.5
             qdrwp, dwp = qdrdist(lat, lon, dest_lat, dest_lon)
             current_distance = dwp*nm
             if current_distance<distance:
@@ -253,7 +253,6 @@ class RandomScenario:
             lat = bs.navdb.wplat[wp_idx]
             lon = bs.navdb.wplon[wp_idx]
             if counter>10:
-                print("eeeeeee")
                 rlook += 0.2
                 distance -= 1000
 

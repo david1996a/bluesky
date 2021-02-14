@@ -24,18 +24,21 @@ class BSEnv:
 		self.action_space = np.arange(self.n_actions)	#Vector that will containt the possible options
 		self.observation_space = np.array([])	#Vector that will contain the state space.
 		self.number_of_planes = 5	#Number of surrounding planes that each agent takes into account when calculating individual states.
-		self.time_step = 10	#[s] time between each timestep for the rl model.
+		self.time_step = 5	#[s] time between each timestep for the rl model.
 
 	def reset(self):
 		"""
 		TO DO: Rewrite this function so it is easier to restart the scenario. It takes too long since it has to
 		restart all bluesky.
 		"""
+		tic = time.time()
 		print("resetting...")
 		bs.sim.reset()
 		#bs.net.connect()
 		states = self.calculate_states()
 		state = self.calculate_general_state()
+		tac = time.time()
+		print("Resetting took ",(tac-tic)," seconds")
 		return state, states
 
 	def calculate_states(self):
@@ -62,7 +65,8 @@ class BSEnv:
 			#Distance and heading from the plane to the destination.
 			heading, distance = bs.tools.geo.qdrdist(bs.traf.lat[ac], bs.traf.lon[ac], 
 				bs.traf.ap.route[ac].wplat[-1], bs.traf.ap.route[ac].wplon[-1])
-			state[index:] = [heading, distance]
+	
+			state[(len(state)-2):] = [heading, distance]
 			states[ac,:] = state
 
 		return states
@@ -141,7 +145,7 @@ class BSEnv:
 	def check_episode_done(self):
 		if bs.traf.ntraf < self.number_of_planes:
 			return True
-		if bs.sim.simt > 3600:
+		if bs.sim.simt > 7200:
 			return True
 
 		return False
