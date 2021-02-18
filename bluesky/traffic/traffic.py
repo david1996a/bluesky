@@ -29,7 +29,7 @@ from .activewpdata import ActiveWaypoint
 from .turbulence import Turbulence
 from .trafficgroups import TrafficGroups
 from .performance.perfbase import PerfBase
-from bluesky.core import plugin
+from .performance.openap.perfoap import OpenAP
 
 # Register settings defaults
 bs.settings.set_variable_defaults(performance_model='openap', asas_dt=1.0)
@@ -132,7 +132,7 @@ class Traffic(Entity):
             self.adsb     = ADSB()
             self.trails   = Trails()
             self.actwp    = ActiveWaypoint()
-            self.perf     = PerfBase()
+            self.perf     = OpenAP()
 
             # Group Logic
             self.groups = TrafficGroups()

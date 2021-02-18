@@ -48,16 +48,18 @@ class DDPG(object):
 		state, observation, actions, reward, next_states, next_observation, next_actions_full, agent_dones = experiences
 		
 		"""Training the critic"""
-		Q_target_next = self.critic_target.forward(next_states, torch.tensor(next_actions_full.detach().numpy().reshape(BATCH_SIZE, number_agents)).to(DEVICE))
+		Q_target_next = self.critic_target.forward(next_states, torch.tensor(next_actions_full.detach().cpu().data.numpy().reshape(
+			BATCH_SIZE, number_agents)).to(DEVICE))
 		Q_target = reward + gamma * Q_target_next * (1 - agent_dones)
-		Q_expected = self.critic_local.forward(state, torch.tensor(actions.detach().numpy().reshape(BATCH_SIZE, number_agents)).to(DEVICE))
+		Q_expected = self.critic_local.forward(state, torch.tensor(actions.detach().cpu().data.numpy().reshape(
+			BATCH_SIZE, number_agents)).to(DEVICE))
 		critic_loss = F.mse_loss(input=Q_expected, target=Q_target)
 		critic_loss.backward()
 		self.critic_optimizer.zero_grad()
 
 		"""Training the actor"""
 		actions[:,agent_no,:] = self.actor_local.forward(observation[:,agent_no])
-		actor_loss = -self.critic_local.forward(state, torch.tensor(actions.detach().numpy().reshape(BATCH_SIZE, number_agents)).to(DEVICE)).mean()
+		actor_loss = -self.critic_local.forward(state, torch.tensor(actions.detach().cpu().data.numpy().reshape(BATCH_SIZE, number_agents)).to(DEVICE)).mean()
 		self.actor_optimizer.zero_grad()
 		actor_loss.backward()
 		self.actor_optimizer.step()
@@ -80,9 +82,11 @@ class DDPG(object):
 
 		if not add_noise:
 			self.noise_scale = 0.0
-
+		
 		with torch.no_grad():
-			action = self.actor_local.forward(observation).numpy()
+			action = self.actor_local.forward(observation).cpu().data.numpy()
+		self.actor_local.train()
+		
 		action += self.noise_scale*self.add_noise()
 		return np.clip(action, MIN_ACTION, MAX_ACTION)
 

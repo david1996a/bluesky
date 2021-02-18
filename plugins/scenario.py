@@ -76,15 +76,13 @@ def preupdate():
 def update():
     pass
 
-def reset():
-    pass
 
 def mlstep():
     pass
 
 class RandomScenario:
     def __init__(self):
-        self.zone = Circle('zone', (random.uniform(50,40), random.uniform(0,15), 100))
+        self.zone = Circle('zone', (random.uniform(50,40), random.uniform(0,15), 175))
         self.numb_ac = 20
         self.ap_inside = bs.navdb.getapinside(40, 50, 0, 15)
         self.routecompleted = np.full((self.numb_ac), False)
@@ -120,7 +118,8 @@ class RandomScenario:
         wptype = bs.navdb.wptype[final_idx]
         lat2 =  bs.navdb.wplat[final_idx]
         lon2 = bs.navdb.wplon[final_idx]
-        bs.traf.ap.route[idx].addwpt(idx, name, 0, lat2, lon2)
+        if lat2 != dest_lat or lon2 != dest_lon:
+            bs.traf.ap.route[idx].addwpt(idx, name, 0, lat2, lon2, 10000)
         return final_idx
 
     def update(self):
@@ -254,7 +253,7 @@ class RandomScenario:
             lon = bs.navdb.wplon[wp_idx]
             if counter>10:
                 rlook += 0.2
-                distance -= 1000
+                distance += 1000
 
         #self.addrwy(idx)
 
@@ -263,7 +262,7 @@ class RandomScenario:
             bs.traf.ap.route[ac].iac = ac
 
 def reset():
-    random_scenario.zone = Circle('zone', (random.uniform(50,40), random.uniform(0,15), 400))
+    random_scenario.zone = Circle('zone', (random.uniform(50,40), random.uniform(0,15), 175))
     random_scenario.numb_ac = 20
     random_scenario.routecompleted = np.full((random_scenario.numb_ac), False)
     random_scenario.wpcalculated = np.full((random_scenario.numb_ac), False)

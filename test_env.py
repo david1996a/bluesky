@@ -12,11 +12,11 @@ print("The device is: ",DEVICE)
 
 env = BSEnv()
 resets = 0
-state_size = bs.traf.ntraf*4
-observation_size = 12
+state_size = bs.traf.ntraf*4+6*bs.traf.ntraf
+observation_size = 18
 action_size = 1
 n_agents = 20
-n_episodes = 5
+n_episodes = 500
 buffer_samples = 200
 maddpg = MADDPG(state_size, observation_size, action_size, n_agents, buffer_samples)
 scores_deque = deque(maxlen=100)
@@ -32,7 +32,7 @@ for i in range(n_episodes):
 	i_i = 0
 	#print("Starting episode... ",i)
 	while done == False:
-		actions = maddpg.act(torch.from_numpy(observations), i)
+		actions = maddpg.act(torch.from_numpy(observations).to(DEVICE), i)
 		env.take_actions_continuous(actions)
 		next_state, next_observations, reward, done = env.step()
 		maddpg.step(i, state, observations, actions, reward, next_state, next_observations, done)
@@ -41,9 +41,9 @@ for i in range(n_episodes):
 		num_steps += 1
 		observations = next_observations
 		i_i += 1
-		if i_i % 10 == 0:
-			pass
-			#print("Step: 	",i_i)
+		
+		if i_i % 20 == 0:
+			print("Step: 	",i_i)
 		
 	scores_deque.append(scores)
 	scores_list.append(scores)

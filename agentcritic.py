@@ -9,10 +9,8 @@ def hidden_init(layer):
     lim = 1. / np.sqrt(fan_in)
     return (-lim, lim)
 
-
 class Actor(nn.Module):
 	def __init__(self, state_size, action_size, fc1_units = 256, fc2_units = 128):
-
 		super(Actor, self).__init__()
 		self.fc1 = nn.Linear(state_size, fc1_units)
 		self.fc2 = nn.Linear(fc1_units, fc2_units)
@@ -34,7 +32,6 @@ class Actor(nn.Module):
 class Critic(nn.Module):
 	def __init__(self, full_state_size, full_action_size, fcs1_units=256, fc2_units=128):
 		super(Critic, self).__init__()
-		#print(full_state_size,fcs1_units)
 		self.fcs1 = nn.Linear(full_state_size, fcs1_units)
 		self.fc2 = nn.Linear(fcs1_units+full_action_size, fc2_units)
 		self.fc3 = nn.Linear(fc2_units, 1)

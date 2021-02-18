@@ -3,7 +3,7 @@ from ddpg import DDPG
 from buffer import Buffer
 import torch as T
 
-NUM_LEARN_STEPS_PER_ENV_STEP = 1
+NUM_LEARN_STEPS_PER_ENV_STEP = 3
 GAMMA = 0.9
 BATCH_SIZE = 2000
 DEVICE = T.device("cuda:0" if T.cuda.is_available() else "cpu")
@@ -42,7 +42,7 @@ class MADDPG:
 
 		for index, agent in enumerate(self.maddpg_agents):
 			#print(agent, index)
-			full_next_actions[:,index,:] = agent.actor_target.forward(next_observations[:,index,:]).detach().numpy()
+			full_next_actions[:,index,:] = agent.actor_target.forward(next_observations[:,index,:]).detach().cpu().data.numpy()
 		#full_next_actions = full_next_actions.reshape(self.n_agents, BATCH_SIZE)
 		full_next_actions = T.tensor(full_next_actions).to(DEVICE)
 		#print(observations)

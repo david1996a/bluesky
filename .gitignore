@@ -24,3 +24,5 @@ plugins/__pycache__/
 test_maddpg.py
 settings_ml.py
 test_index_bug.py
+/models
+vectors.py
