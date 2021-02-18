@@ -6,7 +6,8 @@ import numpy as np
 
 #Constants
 BUFFER_SIZE = int(1e5)  # replay buffer size
-BATCH_SIZE = 2000         # minibatch size
+BATCH_SIZE = 30        # minibatch size
+SAMPLE_SIZE = 20
 GAMMA = 0.99            # discount factor
 TAU = 1e-3              # for soft update of target parameters
 LR_ACTOR = 1e-4 #3e-5 #1e-4         # learning rate of the actor 
@@ -48,18 +49,26 @@ class DDPG(object):
 		state, observation, actions, reward, next_states, next_observation, next_actions_full, agent_dones = experiences
 		
 		"""Training the critic"""
-		Q_target_next = self.critic_target.forward(next_states, torch.tensor(next_actions_full.detach().cpu().data.numpy().reshape(
-			BATCH_SIZE, number_agents)).to(DEVICE))
+		#next_actions = torch.tensor(next_actions_full.detach().cpu().data.numpy().reshape(
+		#	SAMPLE_SIZE, number_agents)).to(DEVICE)
+
+		next_actions = torch.zeros((SAMPLE_SIZE, number_agents), device=DEVICE)
+		next_actions = torch.reshape(next_actions_full, (SAMPLE_SIZE, number_agents))
+		#print(next_actions.device)
+		Q_target_next = self.critic_target.forward(next_states, next_actions)
 		Q_target = reward + gamma * Q_target_next * (1 - agent_dones)
-		Q_expected = self.critic_local.forward(state, torch.tensor(actions.detach().cpu().data.numpy().reshape(
-			BATCH_SIZE, number_agents)).to(DEVICE))
+		#next_actions2 = torch.tensor(actions.detach().cpu().data.numpy().reshape(SAMPLE_SIZE, number_agents)).to(DEVICE)
+		next_actions = torch.reshape(actions, (SAMPLE_SIZE, number_agents))
+		Q_expected = self.critic_local.forward(state, next_actions)
 		critic_loss = F.mse_loss(input=Q_expected, target=Q_target)
 		critic_loss.backward()
 		self.critic_optimizer.zero_grad()
 
 		"""Training the actor"""
 		actions[:,agent_no,:] = self.actor_local.forward(observation[:,agent_no])
-		actor_loss = -self.critic_local.forward(state, torch.tensor(actions.detach().cpu().data.numpy().reshape(BATCH_SIZE, number_agents)).to(DEVICE)).mean()
+		#next_actions3 = torch.tensor(actions.detach().cpu().data.numpy().reshape(SAMPLE_SIZE, number_agents)).to(DEVICE)).mean()
+		#next_actions3 = torch.reshape(actions, (SAMPLE_SIZE, number_agents), device=DEVICE)
+		actor_loss = -self.critic_local.forward(state, next_actions).mean()
 		self.actor_optimizer.zero_grad()
 		actor_loss.backward()
 		self.actor_optimizer.step()

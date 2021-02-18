@@ -5,7 +5,8 @@ import torch as T
 
 NUM_LEARN_STEPS_PER_ENV_STEP = 3
 GAMMA = 0.9
-BATCH_SIZE = 2000
+BATCH_SIZE = 30
+SAMPLE_SIZE = 20
 DEVICE = T.device("cuda:0" if T.cuda.is_available() else "cpu")
 
 class MADDPG:
@@ -16,7 +17,7 @@ class MADDPG:
 		self.n_agents = n_agents
 		self.whole_action_size = self.action_size * self.n_agents
 		self.buffer_samples = buffer_samples	#Number of transitions to be stored in the buffer.
-		self.episodes_before_training = 2
+		self.episodes_before_training = 0
 		"""Initializing the DDPG network for each agent"""
 		self.maddpg_agents = [DDPG(state_size = self.state_size, 
 			observation_size = self.observation_size, action_size = self.action_size,
@@ -38,28 +39,27 @@ class MADDPG:
 
 	def learn(self, sample, agent_no, gamma):
 		states, observations, actions, rewards, next_states, next_observations, dones = sample
-		full_next_actions = np.zeros((BATCH_SIZE, self.n_agents, self.action_size), dtype=np.float32)
-
+		#full_next_actions = np.zeros((SAMPLE_SIZE, self.n_agents, self.action_size), dtype=np.float32)
+		full_next_actions = T.zeros((SAMPLE_SIZE, self.n_agents, self.action_size), dtype=T.float32, device=DEVICE)
 		for index, agent in enumerate(self.maddpg_agents):
-			#print(agent, index)
-			full_next_actions[:,index,:] = agent.actor_target.forward(next_observations[:,index,:]).detach().cpu().data.numpy()
+			full_next_actions[:,index,:] = agent.actor_target.forward(next_observations[:,index,:])
 		#full_next_actions = full_next_actions.reshape(self.n_agents, BATCH_SIZE)
-		full_next_actions = T.tensor(full_next_actions).to(DEVICE)
+		#full_next_actions = T.tensor(full_next_actions).to(DEVICE)
 		#print(observations)
 		agent.learn((states, observations, actions, rewards, next_states, next_observations, full_next_actions, dones), 
 			GAMMA, agent_no, self.n_agents)
 
 	def sample_memory(self):
 		state, observations, action, reward, next_state, next_observations, done = \
-						self.memory.sample_buffer(BATCH_SIZE)
+						self.memory.sample_buffer(SAMPLE_SIZE)
 
-		states = T.tensor(state).to(DEVICE)
-		observations = T.tensor(observations).to(DEVICE)
-		rewards = T.tensor(reward).to(DEVICE)
-		dones = T.tensor(done).to(DEVICE)
-		actions = T.tensor(action).to(DEVICE)
-		next_states = T.tensor(next_state).to(DEVICE)
-		next_observations = T.tensor(next_observations).to(DEVICE)
+		states = T.tensor(state, device=DEVICE)
+		observations = T.tensor(observations, device=DEVICE)
+		rewards = T.tensor(reward, device=DEVICE)
+		dones = T.tensor(done, device=DEVICE)
+		actions = T.tensor(action, device=DEVICE)
+		next_states = T.tensor(next_state, device=DEVICE)
+		next_observations = T.tensor(next_observations, device=DEVICE)
 
 		return states, observations, actions, rewards, next_states, next_observations, dones
 

@@ -104,16 +104,20 @@ class RandomScenario:
         dest_lat = bs.navdb.aptlat[dest_idx]
         dest_lon = bs.navdb.aptlon[dest_idx]
         #We select waypoints surrounding the aircraft.
-        list_next_wp = bs.navdb.getwpinside(lat-range_look , lat+range_look , lon-range_look , lon+range_look)
+        list_next_wp = bs.navdb.getwpinside(lat-range_look, lat+range_look, lon-range_look , lon+range_look)
         min_value = np.inf
         weight1 = 10
-        for waypoint in list_next_wp:
-            qdrwp, dwp = qdrdist(lat, lon, bs.navdb.wplat[waypoint], bs.navdb.wplon[waypoint])
-            qdrdest, ddest = qdrdist(bs.navdb.wplat[waypoint], bs.navdb.wplon[waypoint], dest_lat, dest_lon)
-            value = (abs(qdrwp - qdrdest)/360.0*weight1 + (ddest - dwp)/ddest)
-            if min_value>value:
-                final_idx = waypoint
-                min_value = value
+        final_idx = None
+        while final_idx == None:
+            list_next_wp = bs.navdb.getwpinside(lat-range_look, lat+range_look, lon-range_look , lon+range_look)
+            for waypoint in list_next_wp:
+                qdrwp, dwp = qdrdist(lat, lon, bs.navdb.wplat[waypoint], bs.navdb.wplon[waypoint])
+                qdrdest, ddest = qdrdist(bs.navdb.wplat[waypoint], bs.navdb.wplon[waypoint], dest_lat, dest_lon)
+                value = (abs(qdrwp - qdrdest)/360.0*weight1 + (ddest - dwp)/ddest)
+                if min_value>value:
+                    final_idx = waypoint
+                    min_value = value
+            range_look += 0.5
         name = bs.navdb.wpid[final_idx]
         wptype = bs.navdb.wptype[final_idx]
         lat2 =  bs.navdb.wplat[final_idx]
