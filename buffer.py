@@ -7,10 +7,10 @@ class Buffer:
 		self.state_memory = np.zeros((self.max_size, input_shape), dtype=np.float32)
 		self.observations_memory = np.zeros((self.max_size, number_of_agents, observation_shape), dtype=np.float32)
 		self.action_memory = np.zeros((self.max_size, number_of_agents, 1), dtype=np.float32)
-		self.reward_memory = np.zeros((self.max_size,1), dtype=np.float32)
+		self.reward_memory = np.zeros((self.max_size,number_of_agents), dtype=np.float32)
 		self.next_state_memory = np.zeros((self.max_size, input_shape), dtype=np.float32)
 		self.next_observations_memory = np.zeros((self.max_size, number_of_agents, observation_shape), dtype=np.float32)
-		self.done_memory = np.zeros((self.max_size,1), dtype=np.uint8)
+		self.done_memory = np.zeros((self.max_size, number_of_agents), dtype=np.uint8)
 
 	def store_transition(self, state, observations, actions, reward, next_state, next_observations, done):
 		index = self.mem_cntr%self.max_size

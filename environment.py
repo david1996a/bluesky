@@ -3,7 +3,10 @@ import numpy as np
 from bluesky.tools.aero import nm
 import time
 import os
-from vectors import *
+from routes import Route
+import math
+import copy
+
 os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
 MU0 = 0.9087861752210031
 MU0 = np.deg2rad(MU0)
@@ -33,21 +36,39 @@ class BSEnv:
 		self.observation_space = np.array([])	#Vector that will contain the state space.
 		self.number_of_planes = 5	#Number of surrounding planes that each agent takes into account when calculating individual states.
 		self.time_step = 5	#[s] time between each timestep for the rl model.
-
+		self.agents_id_idx = {bs.traf.id[i]: i for i in range(bs.traf.ntraf)}
 		self.routes = {}
 		for i in range(bs.traf.ntraf):
 			self.routes[bs.traf.id[i]] = Route(np.append(bs.traf.lat[i],bs.traf.ap.route[i].wplat), 
 			np.append(bs.traf.lon[i],bs.traf.ap.route[i].wplon),
 			np.append(bs.traf.alt[i],bs.traf.ap.route[i].wpalt), bs.traf.id[i])
 
-	def reset(self):
-		"""
-		TO DO: Rewrite this function so it is easier to restart the scenario. It takes too long since it has to
-		restart all bluesky.
-		"""
+		self.traffic = None
+		self.simulation = None 
+		self.screen = None
+		self.net = None
+
+	def reset(self, episode):
 		tic = time.time()
 		print("resetting...")
 		bs.sim.reset()
+		"""
+		if episode%5 == 0:
+			bs.sim.reset()
+			self.traffic = copy.deepcopy(bs.traf)
+			self.simulation = copy.deepcopy(bs.sim)
+			self.screen = copy.deepcopy(bs.scr)
+			self.net = copy.deepcopy(bs.net)
+		else:
+			print(bs.sim.simt, self.simulation.simt)
+			print(id(bs.sim), id(bs.sim.simt), id(self.simulation), id(self.simulation.simt))
+			bs.traf = self.traffic
+			bs.sim = self.simulation
+			bs.scr = self.screen
+			bs.net = self.net
+			print(bs.sim.simt)
+		"""
+		self.agents_id_idx = {bs.traf.id[i]: i for i in range(bs.traf.ntraf)}
 		self.routes = {}
 		for i in range(bs.traf.ntraf):
 			self.routes[bs.traf.id[i]] = Route(np.append(bs.traf.lat[i],bs.traf.ap.route[i].wplat), 
@@ -65,11 +86,11 @@ class BSEnv:
 		Function that returns the state for all the agents of the environment. It retuns it in the form of a 
 		numpy matrix where each row will be the state for an aircraft.
 		"""
-		states = np.zeros(shape=(self.initial_number_of_planes, 18), dtype=np.float32)
-		for ac in range(bs.traf.ntraf):
+		states = np.ones(shape=(self.initial_number_of_planes, 18), dtype=np.float32)*-999
+		for acid in bs.traf.id:
 			state = np.zeros(18, dtype=np.float32)
 			index = 0
-			acid = bs.traf.id[ac]
+			ac = bs.traf.id2idx(acid)
 			#Distance and heading relative to the other planes.
 			qdr, distinm = bs.tools.geo.qdrdist(bs.traf.lat, bs.traf.lon,
 									np.ones(len(bs.traf.lat))*bs.traf.lat[ac], np.ones(len(bs.traf.lon))*bs.traf.lon[ac])
@@ -95,31 +116,38 @@ class BSEnv:
 				bs.traf.ap.route[ac].wplat[-1], bs.traf.ap.route[ac].wplon[-1])
 	
 			state[(len(state)-2):] = [heading, distance]
-			states[ac,:] = state
-
+			states[self.agents_id_idx[acid],:] = state
 		return states
 
 	def calculate_general_state(self):
 		"""
 		Function that returns the global state in the form of a numpy array.
 		"""
-		wplats = np.array([], dtype=np.float32)
-		wplons = np.array([], dtype=np.float32)
-		for ac in range(bs.traf.ntraf):
-			acid = bs.traf.id[ac]
+		wplats = np.ones((self.initial_number_of_planes*3), dtype=np.float32) * -999
+		wplons = np.ones((self.initial_number_of_planes*3), dtype=np.float32) * -999
+		lats = np.ones((self.initial_number_of_planes), dtype=np.float32) * -999
+		lons = np.ones((self.initial_number_of_planes), dtype=np.float32) * -999
+		cass = np.ones((self.initial_number_of_planes), dtype=np.float32) * -999
+		alts = np.ones((self.initial_number_of_planes), dtype=np.float32) * -999
+		for acid in bs.traf.id:
+			index = bs.traf.id2idx(acid)
+			#print(len(self.routes[acid].wplat), self.routes[acid].current_tram, len(self.routes[acid].wplat)-self.routes[acid].current_tram)
 			for i in range(min(3, len(self.routes[acid].wplat)-self.routes[acid].current_tram)):
-				wplats = np.append(wplats, self.routes[acid].wplat[self.routes[acid].current_tram+i])
-				wplons = np.append(wplons, self.routes[acid].wplon[self.routes[acid].current_tram+i])
-
-		wplats = padding_vector(wplats, 3*bs.traf.ntraf)
-		wplons = padding_vector(wplons, 3*bs.traf.ntraf)
-
-		state = np.zeros(self.initial_number_of_planes*4+self.initial_number_of_planes*6, dtype=np.float32)
-		state[0:bs.traf.ntraf] = bs.traf.lat
-		state[self.initial_number_of_planes:(self.initial_number_of_planes+bs.traf.ntraf)] = bs.traf.lon
-		state[2*self.initial_number_of_planes:(2*self.initial_number_of_planes+bs.traf.ntraf)] = bs.traf.alt
-		state[3*self.initial_number_of_planes:(3*self.initial_number_of_planes+bs.traf.ntraf)] = bs.traf.cas
-		state[4*self.initial_number_of_planes:(4*self.initial_number_of_planes+bs.traf.ntraf*6)] = np.append(wplats, wplons)
+				wplats[self.agents_id_idx[acid]*3+i] = self.routes[acid].wplat[self.routes[acid].current_tram+i]
+				wplons[self.agents_id_idx[acid]*3+i] = self.routes[acid].wplon[self.routes[acid].current_tram+i]
+			lats[self.agents_id_idx[acid]] =	bs.traf.lat[index]
+			lons[self.agents_id_idx[acid]] = bs.traf.lon[index]
+			alts[self.agents_id_idx[acid]] = bs.traf.alt[index]
+			cass[self.agents_id_idx[acid]] = bs.traf.cas[index]
+		"""
+		print("lats: ",lats)
+		print("lons: ",lons)
+		print("alts: ",alts)
+		print("cass: ",cass)
+		print("wplats: ",wplats)
+		print("wplons: ",wplons)
+		"""
+		state = np.concatenate((lats, lons, alts, cass, wplats, wplons))
 		return state
 
 	def reward(self, w_time=1, w_fuel=1, w_conflicts=1, w_complexity=1):
@@ -131,32 +159,46 @@ class BSEnv:
 
 		distances = bs.tools.geo.latlondist(bs.traf.lat, bs.traf.lon,
 			dest_lat, dest_lon)
-
+		reward = 0
 		for ac in range(bs.traf.ntraf):
 			dest_idx = bs.navdb.getaptidx(bs.traf.ap.dest[ac])
 			dest_lat[ac] = bs.navdb.aptlat[dest_idx]
 			dest_lon[ac] = bs.navdb.aptlon[dest_idx]
+			reward += self.reward_individual(ac, distances[ac]/1000)
 			"""
 			dest_lat = np.hstack((dest_lat, np.array([bs.navdb.aptlat[dest_idx]])))
 			dest_lat = np.hstack((dest_lon, np.array([bs.navdb.aptlon[dest_idx]])))
 			"""
-
-		return -w_time*bs.traf.ntraf - w_fuel*1 - w_conflicts*1 
+		rewards = np.zeros(self.initial_number_of_planes, dtype=np.float32)
+		indexs = [self.agents_id_idx[acid] for acid in bs.traf.id]
+		rewards[indexs] = reward/bs.traf.ntraf
+		return rewards
 
 	def reward_individual(self, ac, distance, w_time=1, w_fuel=1, w_conflicts=1, w_distance=2, w_offtrack=1):
 		reward_time = w_time
 		reward_fuel = w_fuel*bs.traf.perf.fuelflow[ac]
-		reward_conflicts = w_conflicts*bs.traf.cd.confpairs_unique.count(bs.traf.id[ac])
-		reward_distance = w_distance*distance/(100+distance)
+		reward_conflicts = w_conflicts*sum(bs.traf.id[ac] in conf for conf in bs.traf.cd.confpairs_unique)
+		reward_distance = w_distance*distance/(100+abs(distance)) if math.isnan(w_distance*distance/(100+abs(distance))) == False else 0
 
-		dsitance_track = self.routes[bs.traf.ac[ac]].distance_to_tram(self.routes[bs.traf.ac[ac]].current_tram, 
+
+		distance_track = self.routes[bs.traf.id[ac]].distance_to_tram(self.routes[bs.traf.id[ac]].current_tram, 
 			bs.traf.lat[ac], bs.traf.lon[ac], bs.traf.alt[ac])
-		distance_off_track =  w_distance*distance_track/(2+distance_track)
-		off_heading = self.routes[bs.traf.ac[ac]].calculate_heading_off(self.routes[bs.traf.ac[ac]].current_tram, 
-			bs.traf.hdg[ac]) *2*np.pi
+		distance_off_track =  w_distance*distance_track/(2+abs(distance_track)) if math.isnan(2+abs(distance_track)) == False else 0
+		off_heading = self.routes[bs.traf.id[ac]].calculate_heading_off(self.routes[bs.traf.id[ac]].current_tram, 
+			bs.traf.hdg[ac])*2*np.pi/360
 		reward_offtrack = w_offtrack*(np.cos(off_heading)+distance_off_track)
-
-		return -reward_time-reward_fuel-rewar_conflicts-reward_distance-reward_offtrack
+		"""
+		print("Reward time: ", reward_time)
+		print("Reward fuel: ", reward_fuel)
+		print("Reward conflicts: ",reward_conflicts)
+		print("Reward distance: ", reward_distance)
+		print("Reward offtrack: ", reward_offtrack)
+		"""
+		rewards = [reward_time, reward_fuel, reward_conflicts, reward_distance, reward_offtrack]
+		for index,reward in enumerate(rewards):
+			if math.isnan(reward) == True:
+				print(reward, index)
+		return -reward_time-reward_fuel-reward_conflicts-reward_distance-reward_offtrack
 
 	def step(self):
 		for i in range(self.time_step):
@@ -165,21 +207,25 @@ class BSEnv:
 			done = self.check_episode_done()
 			if done:
 				break
-		
+
+		dones = np.ones(self.initial_number_of_planes, dtype=np.uint8)
 		for acid, route in self.routes.items():
 			idx = bs.traf.id2idx(acid)
 			route.calculate_current_tram(bs.traf.lat[idx], bs.traf.lon[idx], bs.traf.alt[idx])
+			if acid not in bs.traf.id:
+				dones[self.agents_id_idx[acid]] = 1
 
 		state = self.calculate_general_state()
 		states = self.calculate_states()
-		done = self.check_episode_done()
+		#done = self.check_episode_done()
 		reward = self.reward()
-		return state, states, reward, done
+		return state, states, reward, dones, done
 
 
 	def take_actions_continuous(self, actions):
-		for index in range(bs.traf.ntraf):
-			bs.traf.ap.selhdgcmd(index, bs.traf.hdg[index]+actions[index])
+		for acid in bs.traf.id:
+			idx = bs.traf.id2idx(acid)
+			bs.traf.ap.selhdgcmd(idx, bs.traf.hdg[idx]+actions[self.agents_id_idx[acid]])
 
 	def take_actions(self, actions):
 		"""
@@ -217,103 +263,13 @@ class BSEnv:
 
 	def check_episode_done(self):
 		if bs.traf.ntraf < 5:#self.number_of_planes:
+			print("Resetting because the number of planes is ",bs.traf.ntraf, bs.sim.simt)
 			return True
-		if bs.sim.simt > 7200:
+		if bs.sim.simt > 12000:
+			print("Resetting because the simulation time is ", bs.sim.simt)
 			return True
 
 		return False
-
-class Route:
-	def __init__(self, wplats, wplons, wpalts, acid):
-		self.wplat = wplats
-		self.wplon = wplons
-		self.wpalt = wpalts
-		self.number_of_trams = len(self.wplat)-1
-		self.current_tram = 0
-		self.acid = acid
-
-	def calculate_current_tram(self, lat, lon, alt):
-		for tram in range(self.number_of_trams):
-			distance_to_tram = self.distance_to_tram(tram, lat, lon, alt)
-			distance_to_next_wp = bs.tools.geo.latlondist(lat, lon, self.wplat[tram+1], self.wplon[tram+1])
-
-			if distance_to_tram < distance_to_next_wp:
-				self.current_tram = tram
-				return tram, distance_to_tram
-
-
-	def calculate_heading_off(self, tram, heading):
-		desired_heading, _ = qdrdist(self.wplat[tram], self.wplon[tram],
-			self.wplat[tram+1], self.wplon[tram+1])
-		return desired_heading - heading
-
-	def distance_to_tram(self, tram, lat, lon, alt):
-		x1, y1, z1 = lla2ecef((self.wplat[tram], self.wplon[tram], self.wpalt[tram]))
-		x2, y2, z2 = lla2ecef((self.wplat[tram+1], self.wplon[tram+1], self.wpalt[tram+1]))
-		xp, yp, zp = lla2ecef((lat, lon, alt))
-
-		A = np.array([x1, y1, z1])
-		B = np.array([x2, y2, z2])
-		P = np.array([xp, yp, zp])
-
-		distance = distance_numpy(A, B, P)/1000
-		return distance
-		#print(alt, self.wpalt[tram], self.wpalt[tram+1])
-		#print(lat, lon, alt)
-		"""
-		line_vector = (x2-x1, y2-y1, z2-z1)
-		point_vector = (xp, yp, zp)
-
-		print(line_vector, point_vector)
-		line_len = length(line_vector)
-		line_unit_vector = unit(line_vector)
-		ponit_vector_scaled = scale(point_vector, 1.0/line_len)
-		t = dot(line_unit_vector, ponit_vector_scaled)
-
-		if t < 0.0:
-			t = 0.0
-		elif t > 1.0:
-			t = 1.0
-
-		nearest = scale(line_vector, t)
-		dist = distance(nearest, point_vector)
-		#print(dist)
-		return dist/1000
-		"""
-
-from numpy import arccos, array, dot, pi, cross
-from numpy.linalg import det, norm
-import math
-
-# from: https://gist.github.com/nim65s/5e9902cd67f094ce65b0
-def distance_numpy(A, B, P):
-    """ segment line AB, point P, where each one is an array([x, y]) """
-    if all(A == B):
-    	return math.dist(A, P)
-    if all(A == P) or all(B == P):
-        return 0
-    if arccos(dot((P - A) / norm(P - A), (B - A) / norm(B - A))) > pi / 2:
-        return norm(P - A)
-    if arccos(dot((P - B) / norm(P - B), (A - B) / norm(A - B))) > pi / 2:
-        return norm(P - B)
-    return norm(cross(A-B, A-P))/norm(B-A)
-
-def lla2ecef(lla):
-	latitude, longitude, altitude = lla
-
-	coslat = np.cos(latitude * np.pi / 180)
-	sinlat = np.sin(latitude * np.pi / 180)
-
-	coslon = np.cos(longitude * np.pi / 180)
-	sinlon = np.sin(longitude * np.pi / 180)
-
-	c = 1 / np.sqrt(coslat * coslat + (1 - f) * (1 - f) * sinlat * sinlat)
-	s = (1 - f) * (1 - f) * c
-
-	x = (R*c + altitude) * coslat * coslon
-	y = (R*c + altitude) * coslat * sinlon
-	z = (R*s + altitude) * sinlat
-	return x, y, z
 
 
 def padding_vector(vector, length, padding_num=0, dtype=np.float32):
@@ -321,5 +277,49 @@ def padding_vector(vector, length, padding_num=0, dtype=np.float32):
 	result[0:len(vector)] = vector
 	return result
 
+class Saved_scenario():
+    def __init__(self):
+        self.traffic = None
+        self.simulation = None 
+        self.screen = None
+        self.rand_zone = None
+        self.rand_numb_ac = None
+        self.rand_routecompleted = None
+        self.rand_wpcalculated = None
+        self.rand_createconfict = None
+        self.rand_nwconflat = None
+        self.rand_nwconflon = None
+        self.net = None
 
+    def save_scenario(self):
+        self.traffic = copy.deepcopy(bs.traf)
+        self.simulation = copy.deepcopy(bs.sim)
+        self.screen = copy.deepcopy(bs.scr)
+        self.net = copy.deepcopy(bs.net)
+        self.save_random_class()
+
+    def save_random_class(self):
+        self.rand_zone = copy.deepcopy(bs.random.zone)
+        self.rand_numb_ac = copy.deepcopy(bs.random.numb_ac)
+        self.rand_routecompleted = copy.deepcopy(bs.random.routecompleted)
+        self.rand_wpcalculated = copy.deepcopy(bs.random.wpcalculated)
+        self.rand_createconfict = copy.deepcopy(bs.random.createconflict)
+        self.rand_nwconflat = copy.deepcopy(bs.random.nwconflat)
+        self.rand_nwconflon = copy.deepcopy(bs.random.nwconflon)
+
+    def load_random_class(self):
+        bs.random.zone = copy.deepcopy(self.rand_zone)
+        bs.random.numb_ac = copy.deepcopy(self.rand_numb_ac)
+        bs.random.routecompleted = copy.deepcopy(self.rand_routecompleted)
+        bs.random.wpcalculated = copy.deepcopy(self.rand_wpcalculated)
+        bs.random.createconflict = copy.deepcopy(self.rand_createconfict)
+        bs.random.nwconflat = copy.deepcopy(self.rand_nwconflat)
+        bs.random.nwconflon = copy.deepcopy(self.rand_nwconflon)
+
+    def load_scenario(self):
+        bs.traf = copy.deepcopy(self.traffic)
+        bs.sim = copy.deepcopy(self.simulation)
+        bs.scr = copy.deepcopy(self.screen)
+        bs.net = copy.deepcopy(self.net)
+        self.load_random_class()
 

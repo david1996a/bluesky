@@ -355,9 +355,6 @@ class Traffic(Entity):
 
         # Call the actual delete function
         super().delete(idx)
-        if idx == 0:
-            bs.sim.reset()
-
 
         # Update number of aircraft
         self.ntraf = len(self.lat)

@@ -35,7 +35,7 @@ def init_plugin():
         # Update interval in seconds. By default, your plugin's update function(s)
         # are called every timestep of the simulation. If your plugin needs less
         # frequent updates provide an update interval.
-        'update_interval': 1.0,
+        'update_interval': 5.0,
 
         'update':          update,
 
@@ -82,7 +82,7 @@ def mlstep():
 
 class RandomScenario:
     def __init__(self):
-        self.zone = Circle('zone', (random.uniform(50,40), random.uniform(0,15), 175))
+        self.zone = Circle('zone', (random.uniform(50,40), random.uniform(0,15), 250))
         self.numb_ac = 20
         self.ap_inside = bs.navdb.getapinside(40, 50, 0, 15)
         self.routecompleted = np.full((self.numb_ac), False)
@@ -266,7 +266,7 @@ class RandomScenario:
             bs.traf.ap.route[ac].iac = ac
 
 def reset():
-    random_scenario.zone = Circle('zone', (random.uniform(50,40), random.uniform(0,15), 175))
+    random_scenario.zone = Circle('zone', (random.uniform(50,40), random.uniform(0,15), 250))
     random_scenario.numb_ac = 20
     random_scenario.routecompleted = np.full((random_scenario.numb_ac), False)
     random_scenario.wpcalculated = np.full((random_scenario.numb_ac), False)

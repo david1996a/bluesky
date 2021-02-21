@@ -6,8 +6,8 @@ import numpy as np
 
 #Constants
 BUFFER_SIZE = int(1e5)  # replay buffer size
-BATCH_SIZE = 30        # minibatch size
-SAMPLE_SIZE = 20
+BATCH_SIZE = 3000       # minibatch size
+SAMPLE_SIZE = 1000
 GAMMA = 0.99            # discount factor
 TAU = 1e-3              # for soft update of target parameters
 LR_ACTOR = 1e-4 #3e-5 #1e-4         # learning rate of the actor 
@@ -100,7 +100,7 @@ class DDPG(object):
 		return np.clip(action, MIN_ACTION, MAX_ACTION)
 
 	def add_noise(self):
-		noise = 0.5*np.random.randn(1,self.action_size) #sigma of 0.5 as sigma of 1 will have alot of actions just clipped
+		noise = 5*np.random.randn(1,self.action_size) #sigma of 0.5 as sigma of 1 will have alot of actions just clipped
 		return np.squeeze(noise)
 
 

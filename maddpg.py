@@ -5,8 +5,8 @@ import torch as T
 
 NUM_LEARN_STEPS_PER_ENV_STEP = 3
 GAMMA = 0.9
-BATCH_SIZE = 30
-SAMPLE_SIZE = 20
+BATCH_SIZE = 3000
+SAMPLE_SIZE = 1000
 DEVICE = T.device("cuda:0" if T.cuda.is_available() else "cpu")
 
 class MADDPG:
@@ -27,8 +27,8 @@ class MADDPG:
 		self.memory = Buffer(max_size=BATCH_SIZE , input_shape=self.state_size,
 		 	observation_shape = self.observation_size, number_of_agents=self.n_agents)
 
-	def step(self, i_episode, state, observations, actions, reward, next_state, next_observations, done):
-		self.memory.store_transition(state, observations, actions, reward, next_state, next_observations, done)
+	def step(self, i_episode, state, observations, actions, reward, next_state, next_observations, dones):
+		self.memory.store_transition(state, observations, actions, reward, next_state, next_observations, dones)
 
 		if self.memory.mem_cntr > BATCH_SIZE and i_episode > self.episodes_before_training:
 			for _ in range(NUM_LEARN_STEPS_PER_ENV_STEP):
@@ -39,14 +39,13 @@ class MADDPG:
 
 	def learn(self, sample, agent_no, gamma):
 		states, observations, actions, rewards, next_states, next_observations, dones = sample
-		#full_next_actions = np.zeros((SAMPLE_SIZE, self.n_agents, self.action_size), dtype=np.float32)
+
 		full_next_actions = T.zeros((SAMPLE_SIZE, self.n_agents, self.action_size), dtype=T.float32, device=DEVICE)
 		for index, agent in enumerate(self.maddpg_agents):
 			full_next_actions[:,index,:] = agent.actor_target.forward(next_observations[:,index,:])
-		#full_next_actions = full_next_actions.reshape(self.n_agents, BATCH_SIZE)
-		#full_next_actions = T.tensor(full_next_actions).to(DEVICE)
-		#print(observations)
-		agent.learn((states, observations, actions, rewards, next_states, next_observations, full_next_actions, dones), 
+		agent_rewards = rewards[:,agent_no]
+		agent_dones = dones[:,agent_no]
+		agent.learn((states, observations, actions, agent_rewards, next_states, next_observations, full_next_actions, agent_dones), 
 			GAMMA, agent_no, self.n_agents)
 
 	def sample_memory(self):
